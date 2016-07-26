@@ -17,12 +17,12 @@
 #include "debug.h"
 #include "stm32_bluenrg_ble.h"
 
-
+#include "bluenrg_sdk_api.h"
 uint8_t fangzhen=0;//仿真的时候这里要为1，实际运行的时候为0
 /////////////////////////////////////////////////
 #define BDADDR_SIZE 6
 
-BLE_RoleTypeDef BLE_Role = SERVER;
+//BLE_RoleTypeDef BLE_Role = SERVER;
 //BLE_RoleTypeDef BLE_Role = CLIENT;
 
 extern volatile uint8_t set_connectable;
@@ -93,6 +93,9 @@ uint32_t  Inf_Distance_Last=0;
 int Inf_Value_L[31];
 int Inf_Value_R[31];
 int Left_Right[2]={0,0};
+uint8_t Falled_Flag=0;
+
+  int temp11,temp21;
 static char Steer_Cmd_Array[6][30]={{79,80,81,82,83,84,85,84,83,82,81,80,79,78,77,76,75,74,73,74,75,76,77,78,79,0},//大数字向下，控制垂直方向，“是”的舵机控制码
                                       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},//
                                       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -100,6 +103,8 @@ static char Steer_Cmd_Array[6][30]={{79,80,81,82,83,84,85,84,83,82,81,80,79,78,7
                                       {79,77,75,73,71,69,67,69,71,73,75,73,71,69,67,65,67,69,71,73,71,69,67,65,63,0},
                                       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
+volatile uint8_t IIC_Mutex=0;
+char name[20] = "Balance-Car";
 UART_HandleTypeDef UartHandle6;
 UART_HandleTypeDef UartHandle2;
  I2C_HandleTypeDef    I2C_EXPBD_Handle;
@@ -160,6 +165,7 @@ void Steer_Output(void);
  void SpeechT(unsigned char *buf1,unsigned char *buf2,unsigned char *buf3);
  void  Block_Detct(void);
  void  Dange_Detct(void);
+ uint8_t Fall_Detect(float Angle,float Target);
  void Float2Char(float Value,char *array);
  void Shake_Heak(int *Shake_Heak_F);
  void Steer_Cmd_XY(int *Steer_Cmd);
@@ -171,92 +177,48 @@ void Steer_Output(void);
  
  void BlueNRG_Event(void){
   
-      if(set_connectable){
+ //     if(set_connectable){
     /* Establish connection with remote device */
-    Make_Connection();
-    set_connectable = FALSE;
-      }
-      HCI_Process();
+ //   Make_Connection();
+ //   set_connectable = FALSE;
+ //     }
+ //     HCI_Process();
  }
+ 
+  void BlueNRG_Init2(void){
+    
+    
+  }
+ static void adv_name_generate(uint8_t* uni_name) {
+    char temp[3] = "_";
+    /*adv name aplice*/
+    sprintf(temp+1,"%01d%01d",*uni_name,*(uni_name+1));
+    strcat(name, temp);
+}
+ 
  void BlueNRG_Init(void){
-   
-    uint8_t CLIENT_BDADDR[] = {0xbb, 0x00, 0x00, 0xE1, 0x80, 0x02};
-  uint8_t SERVER_BDADDR[] = {0xaa, 0x00, 0x00, 0xE1, 0x80, 0x02};
-  //uint8_t SERVER_BDADDR[] = {0xfd, 0x00, 0x25, 0xec, 0x02, 0x04}; //BT address for HRM test
-  uint8_t bdaddr[BDADDR_SIZE];
-  uint16_t service_handle, dev_name_char_handle, appearance_char_handle;
-  int ret;
-   
-     /* Initialize the BlueNRG SPI driver */
-  BNRG_SPI_Init();
+   	uint8_t tx_power_level = 7;
+    uint16_t adv_interval = 100;
+    uint8_t bdAddr[6];
+  
+		 /* Initialize the BlueNRG SPI driver */
+    
+    BNRG_SPI_Init();
+    /* Initialize the BlueNRG HCI */
+    HCI_Init();
+    /* Reset BlueNRG hardware */
+   BlueNRG_RST();
+  
+    /*Gatt And Gap Init*/
+    ble_init_bluenrg();
+ 
+    HCI_get_bdAddr(bdAddr);
+  
+   adv_name_generate(bdAddr+4);
 
-  /* Initialize the BlueNRG HCI */
-  HCI_Init();
-
-  /* Reset BlueNRG hardware */
-  BlueNRG_RST();
+    ble_set_adv_param(name, bdAddr, tx_power_level, adv_interval);
+    ble_device_start_advertising();
   
-  if(BLE_Role == CLIENT) {
-    Osal_MemCpy(bdaddr, CLIENT_BDADDR, sizeof(CLIENT_BDADDR));
-  } else {
-    Osal_MemCpy(bdaddr, SERVER_BDADDR, sizeof(SERVER_BDADDR));
-  }
-  
-  ret = aci_hal_write_config_data(CONFIG_DATA_PUBADDR_OFFSET,
-                                  CONFIG_DATA_PUBADDR_LEN,
-                                  bdaddr);
-  if(ret){
-    PRINTF("Setting BD_ADDR failed.\n");
-  }
-  
-  ret = aci_gatt_init();    
-  if(ret){
-    PRINTF("GATT_Init failed.\n");
-  }
-  
-  if(BLE_Role == SERVER) {
-#ifdef BLUENRG_MS
-    ret = aci_gap_init(GAP_PERIPHERAL_ROLE, 0, 0x07, &service_handle, &dev_name_char_handle, &appearance_char_handle);
-#else
-    ret = aci_gap_init(GAP_PERIPHERAL_ROLE, &service_handle, &dev_name_char_handle, &appearance_char_handle);
-#endif
-  } else {
-#ifdef BLUENRG_MS
-    ret = aci_gap_init(GAP_CENTRAL_ROLE, 0, 0x07, &service_handle, &dev_name_char_handle, &appearance_char_handle);
-#else
-    ret = aci_gap_init(GAP_CENTRAL_ROLE, &service_handle, &dev_name_char_handle, &appearance_char_handle);
-#endif
-  }
-  
-  if(ret != BLE_STATUS_SUCCESS){
-    PRINTF("GAP_Init failed.\n");
-  }
-    
-  ret = aci_gap_set_auth_requirement(MITM_PROTECTION_REQUIRED,
-                                     OOB_AUTH_DATA_ABSENT,
-                                     NULL,
-                                     7,
-                                     16,
-                                     USE_FIXED_PIN_FOR_PAIRING,
-                                     123456,
-                                     BONDING);
-  if (ret == BLE_STATUS_SUCCESS) {
-    PRINTF("BLE Stack Initialized.\n");
-  }
-  
-  if(BLE_Role == SERVER) {
-    PRINTF("SERVER: BLE Stack Initialized\n");
-    ret = Add_Sample_Service();
-    
-    if(ret == BLE_STATUS_SUCCESS)
-      PRINTF("Service added successfully.\n");
-    else
-      PRINTF("Error while adding service.\n");
-    
-  } else {
-    PRINTF("CLIENT: BLE Stack Initialized\n");
-  }
-    aci_hal_set_tx_power_level(1,7);//信号强度
    
  }
  
@@ -694,12 +656,12 @@ float ax_pre=0;
 void AHRS_Update(void){
   float ax,ay,az,gx,gy,gz,mx,my,mz;
   
-  
-  
+ // while(IIC_Mutex);
+ // IIC_Mutex=1;
     BSP_IMU_6AXES_X_GetAxesRaw((AxesRaw_TypeDef *)&ACC_Value_Raw);
     BSP_IMU_6AXES_G_GetAxesRaw((AxesRaw_TypeDef *)&GYR_Value_Raw);
-    BSP_MAGNETO_M_GetAxesRaw((AxesRaw_TypeDef *)&MAG_Value_Raw);
-   
+    //BSP_MAGNETO_M_GetAxesRaw((AxesRaw_TypeDef *)&MAG_Value_Raw);
+   IIC_Mutex=0;
     ax=ACC_Value_Raw.AXIS_X;
    // ax=0.9*ax_pre+0.1*ax;
     ax_pre=ax;
@@ -757,14 +719,45 @@ MahonyAHRSupdateIMU( gx,  gy,  gz,ax,  ay,  az);
    */
   
 }
+extern float g_fSpeedControlIntegral;
+uint8_t Fall_Detect(float Angle,float Target){
+	//static uint8_t Falled_Flag=0;
+	float E_Angle;
+	E_Angle=Angle-Target;
+	if(Falled_Flag==0){
+		if(E_Angle>50||E_Angle<-50){
+		Falled_Flag=1;
+		}
+	}
+	else{
+		if(E_Angle>-5&&E_Angle<5){
+		Falled_Flag=0;
+		g_fSpeedControlIntegral=0;
+			
+		}
+	}
+		return Falled_Flag;
+}
 void Motor_Output(void){
-  int temp1,temp2;
-  temp1=(int)(g_fAngleControlOut+Turn_Need)*1.035;
-  if(temp1>1000)temp1=1000;
-  if(temp1<-1000)temp1=-1000;
-    temp2=(int)(g_fAngleControlOut-Turn_Need);
-  if(temp2>1000)temp2=1000;
-  if(temp2<-1000)temp2=-1000;
+ // int temp1,temp2;
+  temp11=(int)(g_fAngleControlOut+Turn_Need)*1.035;
+  if(temp11>1000)temp11=1000;
+  if(temp11<-1000)temp11=-1000;
+    temp21=(int)(g_fAngleControlOut-Turn_Need);
+  if(temp21>1000)temp21=1000;
+  if(temp21<-1000)temp21=-1000;
+  
+  if(Fall_Detect(g_fCarAngle,0)){
+        Motor_Control_1(0);
+     Motor_Control_2(0);   
+ //   temp2=1;
+  }else{
+      Motor_Control_1(temp11 );
+     Motor_Control_2(temp21);
+ //    temp2=2;
+  }
+  
+  /*
    if(g_fCarAngle>-50&&g_fCarAngle<50){  
     Motor_Control_1(temp1 );
      Motor_Control_2(temp2);
@@ -773,6 +766,7 @@ void Motor_Output(void){
         Motor_Control_1(0);
      Motor_Control_2(0);    
         }
+  */
 }
   void AHRS_Init(void){
     s_xDataStruct.xSensorData.m_fAccRef[0]=0;

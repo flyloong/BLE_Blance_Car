@@ -74,7 +74,7 @@
  */
 typedef struct {
   uint32_t Len;
-  uint8_t Data[TMsg_MaxLen];
+  int8_t Data[TMsg_MaxLen];
 } TMsg;
 /**
   * @}

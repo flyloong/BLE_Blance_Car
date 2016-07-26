@@ -215,6 +215,9 @@ extern "C" {
 #define LSM6DS0_XG_CTRL_REG6_XL                              0x20
 
 
+  
+  #define LSM6DS0_XG_CTRL_REG8                               0x22
+  
 /**
  * @brief Linear acceleration sensor Control Register 5
  * \code

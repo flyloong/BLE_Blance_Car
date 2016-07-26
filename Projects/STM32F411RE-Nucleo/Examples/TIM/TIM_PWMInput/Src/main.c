@@ -85,7 +85,8 @@ __IO uint32_t            uwFrequency = 0;
 /* Private function prototypes -----------------------------------------------*/
 static void SystemClock_Config(void);
 static void Error_Handler(void);
-
+uint16_t MY_counter=0;
+uint8_t MY_Msg_Data[20];
 /* Private functions ---------------------------------------------------------*/
 
 /**
@@ -93,6 +94,33 @@ static void Error_Handler(void);
   * @param  None
   * @retval None
   */
+
+
+void ble_device_on_message(uint8_t type, uint16_t length, uint8_t* value)
+{
+//  if(type!=1)return;
+//  if(*value!='s'||*(value+1)!='t')return;
+      MY_counter++;
+     temp=type;
+      temp2=length;
+      MY_Msg_Data[0]=*(value);
+         MY_Msg_Data[1]= *(value+1);
+       MY_Msg_Data[2]=*(value+2);
+         MY_Msg_Data[3]= *(value+3);
+          MY_Msg_Data[4]= *(value+4);
+           MY_Msg_Data[5]= *(value+5);
+            MY_Msg_Data[6]= *(value+6);
+             MY_Msg_Data[7]= *(value+7);
+
+}
+
+void ble_device_on_disconnect(uint8_t reason)
+{
+    /* Make the device connectable again. */
+    Ble_conn_state = BLE_CONNECTABLE;
+    ble_device_start_advertising();
+}
+
  int main(void)
 { 
   /* STM32F4xx HAL library initialization:
@@ -107,17 +135,20 @@ static void Error_Handler(void);
 
    SystemClock_Config();
     Uart6_Init(9600);
-  
+ // HAL_Delay(500);
   //  HAL_Delay(10000);
 //Speech("[V1][m55][t5]现在");
    
   /* Configure LED2 */
   BSP_LED_Init(LED2);
- BSP_LED_On(LED2);
+ Uart2_Init(115200);
+ 
     BSP_IMU_6AXES_Init();
+ //HAL_UART_Transmit(&UartHandle2,"2",1,100);
     BSP_MAGNETO_Init();
     BSP_HUM_TEMP_Init();
     BSP_PRESSURE_Init();
+     
    // AHRS_Init();
   LSM9DS0_AHRS();
  // Ov7725_GPIO_Config();
@@ -131,10 +162,10 @@ static void Error_Handler(void);
  // HAL_Delay(50);
  // }
  //   
-
+ BSP_LED_On(LED2);
   /*##-1- Configure the TIM peripheral #######################################*/ 
   /* Set TIMx instance */
-  //Uart2_Init(115200);
+  //
 
   extern UART_HandleTypeDef UartHandle;
   USARTConfig();
@@ -189,20 +220,26 @@ Adc_Init();
 
 Msg.Data[3]=50;
 Msg.Data[4]=50;
-
+ //HAL_Delay(5000);
+//HAL_UART_Transmit(&UartHandle2,"3",1,100);
 BlueNRG_Init();
-
+ //HAL_UART_Transmit(&UartHandle2,"4",1,100);
           Time_Init(25);//10000=1S
           
-  extern uint8_t MY_Msg_Data[8];
-  extern uint8_t MY_Msg_Long;
-  extern  uint16_t MY_counter;  
+ // extern uint8_t MY_Msg_Data[8];
+ // extern uint8_t MY_Msg_Long;
+ // extern  uint16_t MY_counter;  
   uint16_t Pre_MY_counter; 
+  
   while (1)
   {//HAL_Delay(10);
     
-   BlueNRG_Event();
-    if(MY_counter!=Pre_MY_counter&&MY_Msg_Long==8&&MY_Msg_Data[0]=='s'&&MY_Msg_Data[1]=='t')
+   HCI_Process();
+        if(Ble_conn_state) {
+            Ble_conn_state = BLE_NOCONNECTABLE;
+        }
+
+    if(MY_counter!=Pre_MY_counter)
     {
      Msg.Data[0]= MY_Msg_Data[0];
        Msg.Data[1]= MY_Msg_Data[1];
@@ -291,22 +328,37 @@ Speech("[m55]关闭预警");
             case 'i':         //自我介绍
         Speech("[m55]大家好，我叫七零儿[=er5]");
         yaw_Temp=yaw;
+          temp=3;
         break;  
     case 'c':
          Speech("sound402");
+         
          break;
     case 'P':
+      IIC_Mutex=1;
+      while(IIC_Mutex);
+      
         BSP_PRESSURE_GetPressure((float *)&PRESSURE_Value);
+       // IIC_Mutex=0;
           Float2Char(PRESSURE_Value,Speek_F) ;
           SpeechT("[m55]现在的压强是",Speek_F,"帕斯卡");
        break;
     case 'H':
+      IIC_Mutex=1;
+      while(IIC_Mutex);
+      temp=1;
          BSP_HUM_TEMP_GetHumidity((float *)&HUMIDITY_Value);
+      //   IIC_Mutex=0;
           Float2Char(HUMIDITY_Value,Speek_F) ;
           SpeechT("[m55]现在的相对湿度是百分之",Speek_F," ");
        break;
     case 'T':
+      IIC_Mutex=1;
+      while(IIC_Mutex);
+      temp=2;
+     // IIC_Mutex=1;
          BSP_HUM_TEMP_GetTemperature((float *)&TEMPERATURE_Value);
+     //    
       Float2Char(TEMPERATURE_Value,Speek_F) ;
         SpeechT("[m55]现在的温度是",Speek_F,"度");
         break;
@@ -378,14 +430,14 @@ Speech("[m55]关闭预警");
         if(Car_Cmd==0&&Steer_Cmd_Flag==0&&Shake_Heak_Flag==0){
           
           if(!Dance2_Flag)
-        Speed_Need=(Msg.Data[3]-50)*60;
+        Speed_Need=(Msg.Data[3])*100;
         
         if(Turn_90_L_Flag==0&&Dance3_Flag==0)
-        Turn_Need=(Msg.Data[4]-50)*10;
+        Turn_Need=(Msg.Data[4])*10;
         
         
-        SteerConerolOut2=Msg.Data[5]+24;
-        SteerConerolOut1=Msg.Data[6]+30;
+        SteerConerolOut2=Msg.Data[5]+24+50;
+        SteerConerolOut1=Msg.Data[6]+30+50;
         }
         else if(Car_Cmd==1){
           SteerConerolOut1=79;
@@ -394,6 +446,7 @@ Speech("[m55]关闭预警");
       }
     }
 Pre_MY_counter= MY_counter; 
+ 
    ////////////////////////////////////////////////
     if(Dance3_Flag){
       
@@ -439,10 +492,7 @@ Pre_MY_counter= MY_counter;
         Dance2_Flag--;
         
       }
-      
-      
     }
-    
     
     if(Dance1_Flag){
       if(Dance1_Flag==4&&Lett_Right_Flag==0){
@@ -768,19 +818,24 @@ if(Car_Cmd4&&!Car_Cmd3&&!Car_Cmd){
  //Nrf_Check_Event();//nrf24l01相关操作
 //}
  
-  OutData[0]=Inf_Distance;
+ // OutData[0]=Inf_Distance;
     // OutData[0]=pitch*1000;
  //OutData[0]=g_fCarAngle*1000;
   //    OutData[1]=GYR_Value_Raw.AXIS_Y;
+ //OutData[0]=ACC_Value_Raw.AXIS_Y/100;
+ //  OutData[1]=ACC_Value_Raw.AXIS_X/100;
+ //    OutData[2]=GYR_Value_Raw.AXIS_Z/100;
+  //    OutData[3]=GYR_Value_Raw.AXIS_X/100;
   
-   //   OutData[2]=GYR_Value_Raw.AXIS_Z;
-   //   OutData[3]=GYR_Value_Raw.AXIS_X;
+     OutData[0]= Turn_Need/10;
+     OutData[1]= Speed_Need/100;
+     OutData[2]= SteerConerolOut2;
+     OutData[3]= SteerConerolOut1;
+  //    OutData[1]=MAG_Value_Raw.AXIS_Y;
+  //    OutData[2]=MAG_Value_Raw.AXIS_Z;
+   ///   OutData[3]=MAG_Value_Raw.AXIS_X;      
       
-      OutData[1]=MAG_Value_Raw.AXIS_Y;
-      OutData[2]=MAG_Value_Raw.AXIS_Z;
-      OutData[3]=MAG_Value_Raw.AXIS_X;      
-      
- //        OutPut_Data(); 
+     //    OutPut_Data(); 
          
 }
 /**
@@ -819,7 +874,7 @@ static void Error_Handler(void)
   */
 static void SystemClock_Config(void)
 {
-  RCC_ClkInitTypeDef RCC_ClkInitStruct;
+    RCC_ClkInitTypeDef RCC_ClkInitStruct;
   RCC_OscInitTypeDef RCC_OscInitStruct;
 
   /* Enable Power Control clock */

@@ -310,6 +310,9 @@
         <name>$PROJ_DIR$\..\Src\bluenrg_interface.c</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\Src\bluenrg_sdk_api.c</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\Src\clock.c</name>
       </file>
       <file>
@@ -350,9 +353,6 @@
       </file>
       <file>
         <name>$PROJ_DIR$\..\Src\outputdata.h</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\Src\sample_service.c</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\Src\serial_protocol.c</name>

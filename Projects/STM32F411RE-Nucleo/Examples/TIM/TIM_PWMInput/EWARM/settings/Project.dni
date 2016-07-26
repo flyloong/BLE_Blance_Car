@@ -9,10 +9,10 @@ TriggerName=main
 LimitSize=0
 ByteLimit=50
 [stlink]
-stlinkserialNo=151E057B
+stlinkserialNo=F9CB9EB7
 stlinkfoundProbes=
 [DebugChecksum]
-Checksum=1472307560
+Checksum=-684301061
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -39,6 +39,10 @@ ITMportsEnable=0
 ITMportsTermIO=0
 ITMportsLogFile=0
 ITMlogFile=$PROJ_DIR$\ITM.log
+[array_types]
+Fmt0=int8_t[256]	3	0
+Fmt1=uint8_t[20]	3	0
+Fmt2=uint8_t[256]	3	0
 [watch_formats]
 Fmt0={W}42:Car_Cmd2	5	0
 [Trace2]
@@ -86,7 +90,9 @@ mode=0
 [Breakpoints2]
 Bp0=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Src}.1616.5" 0 0 1 "" 0 "" 0
 Bp1=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Src}.1675.5" 0 0 1 "" 0 "" 0
-Count=2
+Bp2=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\main.c}.329.9" 0 0 1 "" 0 "" 0
+Bp3=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\main.c}.366.8" 0 0 1 "" 0 "" 0
+Count=4
 [Aliases]
 A0=_ "C:\Users\acer\Desktop\研三照片\STM32Cube_FW_F4_V1.6.0\Projects\STM32F411RE-Nucleo\Examples\TIM\TIM_PWMInput - 副本\EWARM\startup_stm32f411xe.s" ""
 Count=1

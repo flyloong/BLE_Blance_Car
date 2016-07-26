@@ -76,12 +76,15 @@ void NMI_Handler(void)
   * @param  None
   * @retval None
   */
+extern UART_HandleTypeDef UartHandle2;
 void HardFault_Handler(void)
-{
+{  HAL_UART_Transmit(&UartHandle2,"t",1,100);
   /* Go to infinite loop when Hard Fault exception occurs */
   while (1)
   {
+    
   }
+ 
 }
 
 /**

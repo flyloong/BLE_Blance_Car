@@ -55,7 +55,22 @@ void hci_timeout_callback(void)
   hci_timeout = 1;
   return;
 }
+void HCI_get_bdAddr(uint8_t *addr)
+{
+    /* Generate 48bit bdAddr from Unique device ID register (96 bits).
+     * NOTE: Might be not unique! So change to other method if need.
+     */
 
+#define CHIP_UNIQUE_ID_REG	(0x1FFF7A10)	// move to a proper place?
+    if (addr) {
+        addr[0] = (*(__IO uint8_t *) CHIP_UNIQUE_ID_REG+5);
+        addr[1] = (*(__IO uint8_t *) CHIP_UNIQUE_ID_REG+4);
+        addr[2] = (*(__IO uint8_t *) CHIP_UNIQUE_ID_REG+3);
+        addr[3] = (*(__IO uint8_t *) CHIP_UNIQUE_ID_REG+2);
+        addr[4] = (*(__IO uint8_t *) CHIP_UNIQUE_ID_REG+1);
+        addr[5] = (*(__IO uint8_t *) CHIP_UNIQUE_ID_REG+0);
+    }
+}
 void HCI_Init(void)
 {
   uint8_t index;

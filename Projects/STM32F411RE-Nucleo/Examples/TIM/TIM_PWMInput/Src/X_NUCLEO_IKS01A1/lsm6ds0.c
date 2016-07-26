@@ -124,6 +124,7 @@ static IMU_6AXES_StatusTypeDef LSM6DS0_G_Set_Axes_Status(uint8_t enableX, uint8_
  */
 static IMU_6AXES_StatusTypeDef LSM6DS0_Init(IMU_6AXES_InitTypeDef *LSM6DS0_Init)
 {
+ uint8_t tempReg=0;
   /* Configure the low level interface ---------------------------------------*/
   if(LSM6DS0_IO_Init() != IMU_6AXES_OK)
   {
@@ -165,6 +166,13 @@ static IMU_6AXES_StatusTypeDef LSM6DS0_Init(IMU_6AXES_InitTypeDef *LSM6DS0_Init)
   {
     return IMU_6AXES_ERROR;
   }
+ 
+ //   tempReg &= ~(0x40);
+ //   tempReg |= 0x40;
+  //  if(LSM6DS0_IO_Write(&tempReg, LSM6DS0_XG_MEMS_ADDRESS, LSM6DS0_XG_CTRL_REG8, 1) != IMU_6AXES_OK)
+ // {
+  //  return IMU_6AXES_ERROR;
+ // }
   
   /* Configure interrupt lines */
   LSM6DS0_IO_ITConfig();
